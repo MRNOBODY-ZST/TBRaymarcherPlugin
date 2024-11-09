@@ -114,6 +114,8 @@ public:
 	/** Override ShouldTickIfViewportsOnly to return true, so this also ticks in editor viewports.*/
 	virtual bool ShouldTickIfViewportsOnly() const override;
 
+    void SetOctreeLightParamters();
+
 #endif	  //#if WITH_EDITOR
 
 	/** Called every frame */
@@ -158,10 +160,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	ARaymarchClipPlane* ClippingPlane = nullptr;
 
-	/** An array of lights affecting this volume.**/
-	UPROPERTY(BlueprintReadOnly, EditAnywhere)
-	TArray<ARaymarchLight*> LightsArray;
-
 	/** If set to true, lights will be recomputed on next tick.**/
 	bool bRequestedRecompute = false;
 
@@ -171,6 +169,14 @@ public:
 	/** Raymarch the volume based on defined material. **/
 	UPROPERTY(EditAnywhere)
 	ERaymarchMaterial SelectRaymarchMaterial;
+
+    /** An array of lights affecting this volume.**/
+	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Lit", EditConditionHides))
+	TArray<ARaymarchLight*> LightsArray;
+
+    /** Single light used for rendering octree lit raymarch */
+    UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
+	ARaymarchLight* OctreeLight;
 	
 	/** Raymarch Rendering resources. These contain references to the volume texture currently used, the light volume
 		currently used, as well as buffers to fasten the light propagation.	**/
@@ -188,9 +194,17 @@ public:
 	UPROPERTY(EditAnywhere)
 	float RaymarchingSteps = 150;
 
-	/** Define mip level that octree raymarch material will render.**/
-	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial==ERaymarchMaterial::Octree", EditConditionHides))
+	/** Define minimal octree raymarch mip that will be used to collect data. **/
+	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
 	uint32 OctreeVolumeMip = 0;
+
+	/** Define the mip from which the octree raymarch algorithm starts raymarching. **/
+	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
+	uint32 OctreeStartingMip = 0;
+
+	/** Adds one bite to the each side of the window. Use for debugging purposes. **/
+	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
+	uint32 WindowMaskEdgeBitsCount = 0;
 
 	/** If true, the light volume texture will be created using R32F format instead of the standard G8. This allows
 		Illumination values greater than 1 (over-lighted) to be visible. Comes at the cost of 4x memory consumption and
