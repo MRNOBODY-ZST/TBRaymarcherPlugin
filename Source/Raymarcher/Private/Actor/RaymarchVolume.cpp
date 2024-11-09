@@ -8,6 +8,7 @@
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "RenderTargetVolumeMipped.h"
 #include "Rendering/RaymarchMaterialParameters.h"
+#include "Rendering/LightingShaderUtils.h"
 #include "TextureUtilities.h"
 #include "UObject/SavePackage.h"
 #include "Util/RaymarchUtils.h"

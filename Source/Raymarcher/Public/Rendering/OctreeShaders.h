@@ -70,7 +70,7 @@ protected:
 	LAYOUT_FIELD(FShaderResourceParameter, OctreeVolume2);
 	LAYOUT_FIELD(FShaderResourceParameter, OctreeVolume3);
 
-	// Parameter for the added/removed multiplier.
+	// Parameter for min/max values allowed.
 	LAYOUT_FIELD(FShaderParameter, MinMaxValues);
 	
 	// Length of the size of the cube that creates a single leaf. (Each leaf node will have LeafNodeSize^3 voxels)

@@ -4,6 +4,7 @@
 // (original raymarching code).
 
 #include "Widget/TransferFuncMenu.h"
+#include "Curves/CurveLinearColor.h"
 
 bool UTransferFuncMenu::Initialize()
 {
@@ -41,7 +42,7 @@ bool UTransferFuncMenu::Initialize()
 		TFSelectionComboBox->ClearOptions();
 		for (UCurveLinearColor* TFCurve : TFArray)
 		{
-			TFSelectionComboBox->AddOption(GetNameSafe(TFCurve));
+			TFSelectionComboBox->AddOption(TFCurve->GetName());
 		}
 
 		TFSelectionComboBox->SetSelectedIndex(0);
@@ -98,7 +99,7 @@ void UTransferFuncMenu::OnTFCurveChanged(FString CurveName, ESelectInfo::Type Se
 	UCurveLinearColor* SelectedCurve = nullptr;
 	for (UCurveLinearColor* TFCurve : TFArray)
 	{
-		if (CurveName.Equals(GetNameSafe(TFCurve)))
+		if (CurveName.Equals(TFCurve->GetName()))
 		{
 			SelectedCurve = TFCurve;
 			break;
@@ -151,14 +152,14 @@ void UTransferFuncMenu::OnNewVolumeLoaded()
 
 		if (TFSelectionComboBox)
 		{
-			int32 OptionIndex = TFSelectionComboBox->FindOptionIndex(GetNameSafe(RangeProviderVolume->CurrentTFCurve));
+			int32 OptionIndex = TFSelectionComboBox->FindOptionIndex(RangeProviderVolume->CurrentTFCurve->GetName());
 			if (OptionIndex == -1)
 			{
 				TFArray.Add(RangeProviderVolume->CurrentTFCurve);
-				TFSelectionComboBox->AddOption(GetNameSafe(RangeProviderVolume->CurrentTFCurve));
+				TFSelectionComboBox->AddOption(RangeProviderVolume->CurrentTFCurve->GetName());
 			}
 
-			TFSelectionComboBox->SetSelectedOption(GetNameSafe(RangeProviderVolume->CurrentTFCurve));
+			TFSelectionComboBox->SetSelectedOption(RangeProviderVolume->CurrentTFCurve->GetName());
 		}
 	}
 }
