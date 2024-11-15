@@ -202,7 +202,7 @@ public:
 	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
 	uint32 OctreeStartingMip = 0;
 
-	/** Adds one bite to the each side of the window. Use for debugging purposes. **/
+	/** Adds one bit to the each side of the window. Use for debugging purposes. **/
 	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
 	uint32 WindowMaskEdgeBitsCount = 0;
 

@@ -44,9 +44,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Raymarcher")
 	static RAYMARCHER_API void GenerateOctree(FBasicRaymarchRenderingResources& Resources);
 	
-	// Returns a bit mask where all the bits between the window center and window width are ones. Also sample the TF texture
-	// for each bit and set it to zero in case it should be zero.
-	static FVector4 GetWindowingParamsBitMask(FWindowingParameters WindowingParams, int EdgeBits, UTexture2D* TF);
+	// Returns a bit mask where all the bits between the window center and window width are set to 1 if the TF curve is non-zero
+    // at that position.
+	static FVector4 GetBitMaskFromWindowedTFCurve(FWindowingParameters WindowingParams, int EdgeBits, UCurveLinearColor* CurveTF);
 	
 	/** Clears a light volume in provided raymarch resources. */
 	UFUNCTION(BlueprintCallable, Category = "Raymarcher")

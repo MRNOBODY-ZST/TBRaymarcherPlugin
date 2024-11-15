@@ -50,6 +50,13 @@ struct FWindowingParameters
 	{
 		return FLinearColor(Center, Width, LowCutoff, HighCutoff);
 	}
+
+    // Converts a value to a normalized position within the window.
+    // Corresponds to `GetTransferFuncPosition` in WindowedSampling.usf
+    float GetPositionInWindow(float inValue) const
+    {
+        return (inValue - Center + (Width / 2.0)) / Width;
+	}
 };
 
 /// Contains information about the volume loaded from the Various volumetric data file formats supported.

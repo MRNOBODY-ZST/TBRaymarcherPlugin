@@ -22,9 +22,13 @@
 
 #include <Engine/TextureRenderTargetVolume.h>
 
+#include <bit>
+#include <bitset>
 #include <cstdio>
 
 #define LOCTEXT_NAMESPACE "RaymarchPlugin"
+
+#pragma optimize("", off)
 
 // void URaymarchUtils::InitLightVolume(UVolumeTexture*& LightVolume, FIntVector Dimensions)
 // {
@@ -33,330 +37,321 @@
 // }
 
 void URaymarchUtils::AddDirLightToSingleVolume(const FBasicRaymarchRenderingResources& Resources,
-	const FDirLightParameters& LightParameters, const bool Added, const FRaymarchWorldParameters WorldParameters, bool& LightAdded,
-	bool bGPUSync)
+    const FDirLightParameters& LightParameters, const bool Added, const FRaymarchWorldParameters WorldParameters, bool& LightAdded,
+    bool bGPUSync)
 {
-	if (!Resources.DataVolumeTextureRef || !Resources.DataVolumeTextureRef->GetResource() || !Resources.TFTextureRef->GetResource() ||
-		!Resources.LightVolumeRenderTarget->GetResource() || !Resources.DataVolumeTextureRef->GetResource()->TextureRHI ||
-		!Resources.TFTextureRef->GetResource()->TextureRHI || !Resources.LightVolumeRenderTarget->GetResource()->TextureRHI)
-	{
-		LightAdded = false;
-		return;
-	}
-	else
-	{
-		LightAdded = true;
-	}
+    if (!Resources.DataVolumeTextureRef || !Resources.DataVolumeTextureRef->GetResource() ||
+        !Resources.TFTextureRef->GetResource() || !Resources.LightVolumeRenderTarget->GetResource() ||
+        !Resources.DataVolumeTextureRef->GetResource()->TextureRHI || !Resources.TFTextureRef->GetResource()->TextureRHI ||
+        !Resources.LightVolumeRenderTarget->GetResource()->TextureRHI)
+    {
+        LightAdded = false;
+        return;
+    }
+    else
+    {
+        LightAdded = true;
+    }
 
-	if (bGPUSync)
-	{
-		// Call the actual rendering code on RenderThread.
-		// #todo fix GPUSync'd version of shader.
-		//ENQUEUE_RENDER_COMMAND(CaptureCommand)
-		//([=](FRHICommandListImmediate& RHICmdList) {
-		//	AddDirLightToSingleLightVolume_GPUSync_RenderThread(RHICmdList, Resources, LightParameters, Added, WorldParameters);
-		//});
-	}
-	else
-	{
-		// Call the actual rendering code on RenderThread.
-		ENQUEUE_RENDER_COMMAND(CaptureCommand)
-		([=](FRHICommandListImmediate& RHICmdList) {
-			AddDirLightToSingleLightVolume_RenderThread(RHICmdList, Resources, LightParameters, Added, WorldParameters);
-		});
-	}
+    if (bGPUSync)
+    {
+        // Call the actual rendering code on RenderThread.
+        // #todo fix GPUSync'd version of shader.
+        // ENQUEUE_RENDER_COMMAND(CaptureCommand)
+        //([=](FRHICommandListImmediate& RHICmdList) {
+        //	AddDirLightToSingleLightVolume_GPUSync_RenderThread(RHICmdList, Resources, LightParameters, Added, WorldParameters);
+        //});
+    }
+    else
+    {
+        // Call the actual rendering code on RenderThread.
+        ENQUEUE_RENDER_COMMAND(CaptureCommand)
+        ([=](FRHICommandListImmediate& RHICmdList)
+            { AddDirLightToSingleLightVolume_RenderThread(RHICmdList, Resources, LightParameters, Added, WorldParameters); });
+    }
 }
 
 void URaymarchUtils::ChangeDirLightInSingleVolume(FBasicRaymarchRenderingResources& Resources,
-	const FDirLightParameters OldLightParameters, const FDirLightParameters NewLightParameters,
-	const FRaymarchWorldParameters WorldParameters, bool& LightAdded, bool bGpuSync)
+    const FDirLightParameters OldLightParameters, const FDirLightParameters NewLightParameters,
+    const FRaymarchWorldParameters WorldParameters, bool& LightAdded, bool bGpuSync)
 {
-	if (!Resources.DataVolumeTextureRef || !Resources.DataVolumeTextureRef->GetResource() || !Resources.TFTextureRef->GetResource() ||
-		!Resources.LightVolumeRenderTarget->GetResource() || !Resources.DataVolumeTextureRef->GetResource()->TextureRHI ||
-		!Resources.TFTextureRef->GetResource()->TextureRHI || !Resources.LightVolumeRenderTarget->GetResource()->TextureRHI)
-	{
-		LightAdded = false;
-		return;
-	}
-	else
-	{
-		LightAdded = true;
-	}
+    if (!Resources.DataVolumeTextureRef || !Resources.DataVolumeTextureRef->GetResource() ||
+        !Resources.TFTextureRef->GetResource() || !Resources.LightVolumeRenderTarget->GetResource() ||
+        !Resources.DataVolumeTextureRef->GetResource()->TextureRHI || !Resources.TFTextureRef->GetResource()->TextureRHI ||
+        !Resources.LightVolumeRenderTarget->GetResource()->TextureRHI)
+    {
+        LightAdded = false;
+        return;
+    }
+    else
+    {
+        LightAdded = true;
+    }
 
-	// Call the actual rendering code on RenderThread. We capture by value so that if
-	ENQUEUE_RENDER_COMMAND(CaptureCommand)
-	([=](FRHICommandListImmediate& RHICmdList) {
-		ChangeDirLightInSingleLightVolume_RenderThread(
-			RHICmdList, Resources, OldLightParameters, NewLightParameters, WorldParameters);
-	});
+    // Call the actual rendering code on RenderThread. We capture by value so that if
+    ENQUEUE_RENDER_COMMAND(CaptureCommand)
+    (
+        [=](FRHICommandListImmediate& RHICmdList)
+        {
+            ChangeDirLightInSingleLightVolume_RenderThread(
+                RHICmdList, Resources, OldLightParameters, NewLightParameters, WorldParameters);
+        });
 }
 
 void URaymarchUtils::GenerateOctree(FBasicRaymarchRenderingResources& Resources)
 {
-	// Call the actual rendering code on RenderThread. We capture by value so that if
-	ENQUEUE_RENDER_COMMAND(CaptureCommand)
-	([=](FRHICommandListImmediate& RHICmdList)
-	{
-		GenerateOctreeForVolume_RenderThread(RHICmdList, Resources);
-	});
+    // Call the actual rendering code on RenderThread. We capture by value so that if
+    ENQUEUE_RENDER_COMMAND(CaptureCommand)
+    ([=](FRHICommandListImmediate& RHICmdList) { GenerateOctreeForVolume_RenderThread(RHICmdList, Resources); });
 }
-
 
 // Function to sample from the Texture2D. The U and V coordinate are normalized texture coodinates.
 FFloat16Color SampleFromTexture(float U, float V, UTexture2D* TF)
 {
-	// Ensure the Texture2D is valid.
-	if (TF == nullptr)
-	{
-		return {};
-	}
-	
-	int32 TextureWidth = TF->GetSizeX();
-	int32 TextureHeight = TF->GetSizeY();
-	int32 X = FMath::Clamp(FMath::RoundToInt(U * TextureWidth), 0, TextureWidth - 1);
-	int32 Y = FMath::Clamp(FMath::RoundToInt(V * TextureHeight), 0, TextureHeight - 1);
-	
-	// Get the texture data.
-	FTexture2DMipMap* MipMap = &TF->GetPlatformData()->Mips[0];
-	const void* TextureData = MipMap->BulkData.LockReadOnly();
+    // Ensure the Texture2D is valid.
+    if (TF == nullptr)
+    {
+        return {};
+    }
 
-	// Calculate the index in the texture data.
-	int32 TextureDataIndex = (Y * MipMap->SizeX) + X;
+    int32 TextureWidth = TF->GetSizeX();
+    int32 TextureHeight = TF->GetSizeY();
+    int32 X = FMath::Clamp(FMath::RoundToInt(U * TextureWidth), 0, TextureWidth - 1);
+    int32 Y = FMath::Clamp(FMath::RoundToInt(V * TextureHeight), 0, TextureHeight - 1);
 
-	// Sample the color.
-	const FFloat16Color* ColorData = static_cast<const FFloat16Color*>(TextureData);
-	FFloat16Color SampleColor = ColorData[TextureDataIndex];
+    // Get the texture data.
+    FTexture2DMipMap* MipMap = &TF->GetPlatformData()->Mips[0];
+    const void* TextureData = MipMap->BulkData.LockReadOnly();
 
-	// Unlock the texture data.
-	MipMap->BulkData.Unlock();
+    // Calculate the index in the texture data.
+    int32 TextureDataIndex = (Y * MipMap->SizeX) + X;
 
-	return SampleColor;
+    // Sample the color.
+    const FFloat16Color* ColorData = static_cast<const FFloat16Color*>(TextureData);
+    FFloat16Color SampleColor = ColorData[TextureDataIndex];
+
+    // Unlock the texture data.
+    MipMap->BulkData.Unlock();
+
+    return SampleColor;
 }
 
-FVector4 URaymarchUtils::GetWindowingParamsBitMask(FWindowingParameters WindowingParams, int EdgeBits, UTexture2D* TF)
+FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(FWindowingParameters WindowingParams, int EdgeBits, UCurveLinearColor* CurveTF)
 {
-	// TFPos == 1.0 => Value = WindowCenter + WindowWidth/2
-	// TFPos == 0.0 => Value = WindowCenter - WindowWidth/2;
-	
-	float Value0 = (WindowingParams.Center - (WindowingParams.Width / 2.0));
-	float Value1 = (WindowingParams.Center + (WindowingParams.Width / 2.0));
+    // Get min and max window values
+    float MinWindowVal = (WindowingParams.Center - (WindowingParams.Width / 2.0));
+    float MaxWindowVal = (WindowingParams.Center + (WindowingParams.Width / 2.0));
 
-	// Clamp the values since we do not expect negative value in currently rendered volume.
-	Value0 = FMath::Clamp(Value0, 0.0f, 1.0f);
-	Value1 = FMath::Clamp(Value1, 0.0f, 1.0f);
-	
-	// Define the maximal number of bits in bitmask window.
-	static constexpr uint32_t MaxNumberOfBits = 31;
-	const float Factor = 1.0/static_cast<float>(MaxNumberOfBits);
+    // Clamp the values since we do not expect negative value in currently rendered volume.
+    MinWindowVal = FMath::Clamp(MinWindowVal, 0.0f, 1.0f);
+    MaxWindowVal = FMath::Clamp(MaxWindowVal, 0.0f, 1.0f);
 
-	auto GetBitMask = [&](float Val) -> uint32_t
-	{
-	    return static_cast<uint32_t>(Val / Factor);
-	};
-	
-	uint32_t Value0Bit = FMath::Clamp(GetBitMask(Value0), 0, MaxNumberOfBits);
-	uint32_t Value1Bit = FMath::Clamp(GetBitMask(Value1), 0, MaxNumberOfBits);
+    // Define the maximal number of bits in bitmask window.
+    static constexpr uint32_t MaxNumberOfBits = 31;
+    const float Factor = 1.0 / static_cast<float>(MaxNumberOfBits);
 
+    auto BitPositionForValue = [&](float Val) -> uint32_t { return static_cast<uint32_t>(Val / Factor); };
 
-	if (!WindowingParams.LowCutoff)
-	{
-		Value0Bit = 0;
-	}
+    uint32_t MinWindowBit = FMath::Clamp(BitPositionForValue(MinWindowVal), 0, MaxNumberOfBits);
+    uint32_t MaxWindowBit = FMath::Clamp(BitPositionForValue(MaxWindowVal), 0, MaxNumberOfBits);
 
-	if(!WindowingParams.HighCutoff)
-	{
-		Value1Bit = MaxNumberOfBits;
-	}
+    if (!WindowingParams.LowCutoff)
+    {
+        MinWindowBit = 0;
+    }
 
-	if(Value0Bit > Value1Bit)
-	{
-		Swap(Value0Bit, Value1Bit);
-	}
-	
-	uint32_t Result = 0;
-	for(uint32_t i = Value0Bit; i <= Value1Bit; i++)
-	{
-		// Sample the current value from texture. In case the alpha is zero, do not use it.
-		FFloat16Color TFColor = SampleFromTexture(Factor * i, 0.5, TF);
-		if (TFColor.A != 0)
-		{
-			uint32_t n = (1 << i);
-			Result |= n;
-		}
-	}
+    if (!WindowingParams.HighCutoff)
+    {
+        MaxWindowBit = MaxNumberOfBits;
+    }
 
-	// Make the window mask bigger based on the edge Bits.
-	for(int k = 0; k < EdgeBits; k++)
-	{
-		Result |= (Result << 1);
-		Result |= (Result >> 1);
-	}
+    // Handle negative window sizes
+    if (MinWindowBit > MaxWindowBit)
+    {
+        Swap(MinWindowBit, MaxWindowBit);
+    }
 
+    uint32_t Result = 0;
+    // Sample the current value from the curve and set to relevant bit to non-zero if the curve alpha is non-zero
+    for (uint32_t BitNum = MinWindowBit; BitNum <= MaxWindowBit; BitNum++)
+    {
+        uint32_t SamplesPerBit = 16;
+        float SamplingOffset = Factor / SamplesPerBit;
+        for (uint32_t SampleNum = 0; SampleNum < SamplesPerBit; SampleNum++)
+        {
+            FLinearColor TFColor = CurveTF->GetLinearColorValue(WindowingParams.GetPositionInWindow((Factor * BitNum) + SamplingOffset));
+            if (TFColor.A > 0.001)
+            {
+                Result |= (1 << BitNum);
+                break; // Only breaks inner loop.
+            }
+        }
+    }
+
+    // Make the window mask bigger based on the edge Bits.
+    for (int Shake = 0; Shake < EdgeBits; Shake++)
+    {
+        Result |= (Result << 1);
+        Result |= (Result >> 1);
+    }
+
+    std::bitset<32> bitmask(Result);
     // Use for debug purpose.
-	// GEngine->AddOnScreenDebugMessage(54,100,FColor::Orange, FString::Printf(TEXT("%u 0Bit: %u 1Bit: %u"),Result, Value0Bit, Value1Bit));
+    GEngine->AddOnScreenDebugMessage(54, 100, FColor::Orange,
+        FString::Printf(TEXT("Bitmask (min = right, max = left) : %s"), (UTF8_TO_TCHAR(bitmask.to_string().c_str()))));
 
-	union FloatFromUint
-	{
-		uint32_t uintValue;
-		float floatValue;
-	};
-
-	// We need to pack the uint bits into a float value to pass it to the shader.
-	// In the shader, this HAS to be read with asuint(value). Otherwise, it will be garbage.
-	FloatFromUint FloatResult;
-	FloatResult.uintValue = Result;
-	return FVector4(FloatResult.floatValue,0,0,0 );
+    // we bitcast into a float so we can pass it through the material editor. It gets bit-cast back to uint.
+    float FloatValue = std::bit_cast<float>(Result);
+    return FVector4(FloatValue, 0, 0, 0);
 }
-
 
 void URaymarchUtils::ClearResourceLightVolumes(const FBasicRaymarchRenderingResources Resources, float ClearValue)
 {
-	if (!Resources.LightVolumeRenderTarget)
-	{
-		return;
-	}
-	UVolumeTextureToolkit::ClearVolumeTexture(Resources.LightVolumeRenderTarget, ClearValue);
+    if (!Resources.LightVolumeRenderTarget)
+    {
+        return;
+    }
+    UVolumeTextureToolkit::ClearVolumeTexture(Resources.LightVolumeRenderTarget, ClearValue);
 }
 
 RAYMARCHER_API void URaymarchUtils::MakeDefaultTFTexture(UTexture2D*& OutTexture)
 {
-	const unsigned SampleCount = 256;
+    const unsigned SampleCount = 256;
 
-	// Give the texture some height, so it can be inspected in the asset editor.
-	const unsigned TextureHeight = 1;
+    // Give the texture some height, so it can be inspected in the asset editor.
+    const unsigned TextureHeight = 1;
 
-	FFloat16* Samples = new FFloat16[SampleCount * 4 * TextureHeight];
-	for (unsigned i = 0; i < SampleCount; i++)
-	{
-		float Whiteness = (float) i / (float) (SampleCount - 1);
-		Samples[i * 4] = Whiteness;
-		Samples[i * 4 + 1] = Whiteness;
-		Samples[i * 4 + 2] = Whiteness;
-		Samples[i * 4 + 3] = 1;
-	}
+    FFloat16* Samples = new FFloat16[SampleCount * 4 * TextureHeight];
+    for (unsigned i = 0; i < SampleCount; i++)
+    {
+        float Whiteness = (float) i / (float) (SampleCount - 1);
+        Samples[i * 4] = Whiteness;
+        Samples[i * 4 + 1] = Whiteness;
+        Samples[i * 4 + 2] = Whiteness;
+        Samples[i * 4 + 3] = 1;
+    }
 
-	for (unsigned i = 1; i < TextureHeight; i++)
-	{
-		FMemory::Memcpy(Samples + (i * SampleCount * 4), Samples, SampleCount * 4 * 2);
-	}
+    for (unsigned i = 1; i < TextureHeight; i++)
+    {
+        FMemory::Memcpy(Samples + (i * SampleCount * 4), Samples, SampleCount * 4 * 2);
+    }
 
-	UVolumeTextureToolkit::Create2DTextureTransient(
-		OutTexture, PF_FloatRGBA, FIntPoint(SampleCount, TextureHeight), (uint8*) Samples);
+    UVolumeTextureToolkit::Create2DTextureTransient(
+        OutTexture, PF_FloatRGBA, FIntPoint(SampleCount, TextureHeight), (uint8*) Samples);
 
-	// Don't forget to free the memory here
-	delete[] Samples;
-	return;
+    // Don't forget to free the memory here
+    delete[] Samples;
+    return;
 }
 
 void URaymarchUtils::ColorCurveToTexture(UCurveLinearColor* Curve, UTexture2D*& OutTexture)
 {
-	const unsigned sampleCount = 256;
+    const unsigned sampleCount = 256;
 
-	// Give the texture some height, so it can be inspected in the asset editor. Possibly breaks cache consistency
-	const unsigned TextureHeight = 16;
+    // Give the texture some height, so it can be inspected in the asset editor. Possibly breaks cache consistency
+    const unsigned TextureHeight = 16;
 
-	// Using float16 format because RGBA8 wouldn't be persistent for some reason.
-	FFloat16* samples = new FFloat16[sampleCount * 4 * TextureHeight];
+    // Using float16 format because RGBA8 wouldn't be persistent for some reason.
+    FFloat16* samples = new FFloat16[sampleCount * 4 * TextureHeight];
 
-	for (unsigned i = 0; i < sampleCount; i++)
-	{
-		float index = ((float) i) / ((float) sampleCount - 1);
-		FLinearColor picked = Curve->GetLinearColorValue(index);
+    for (unsigned i = 0; i < sampleCount; i++)
+    {
+        float index = ((float) i) / ((float) sampleCount - 1);
+        FLinearColor picked = Curve->GetLinearColorValue(index);
 
-		samples[i * 4] = picked.R;
-		samples[i * 4 + 1] = picked.G;
-		samples[i * 4 + 2] = picked.B;
-		samples[i * 4 + 3] = picked.A;
-	}
+        samples[i * 4] = picked.R;
+        samples[i * 4 + 1] = picked.G;
+        samples[i * 4 + 2] = picked.B;
+        samples[i * 4 + 3] = picked.A;
+    }
 
-	for (unsigned i = 1; i < TextureHeight; i++)
-	{
-		FMemory::Memcpy(samples + (i * sampleCount * 4), samples, sampleCount * 4 * 2);
-	}
+    for (unsigned i = 1; i < TextureHeight; i++)
+    {
+        FMemory::Memcpy(samples + (i * sampleCount * 4), samples, sampleCount * 4 * 2);
+    }
 
-	UVolumeTextureToolkit::Create2DTextureTransient(
-		OutTexture, PF_FloatRGBA, FIntPoint(sampleCount, TextureHeight), (uint8*) samples);
+    UVolumeTextureToolkit::Create2DTextureTransient(
+        OutTexture, PF_FloatRGBA, FIntPoint(sampleCount, TextureHeight), (uint8*) samples);
 
-	delete[] samples;	 // Don't forget to free the memory here
-	return;
+    delete[] samples;    // Don't forget to free the memory here
+    return;
 }
 
 void URaymarchUtils::CreateBufferTextures(FIntPoint Size, EPixelFormat PixelFormat, OneAxisReadWriteBufferResources& RWBuffers)
 {
-	if (Size.X == 0 || Size.Y == 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Warning: Creating Buffer Textures: Size is Zero!"), 3);
-		return;
-	}
+    if (Size.X == 0 || Size.Y == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Warning: Creating Buffer Textures: Size is Zero!"), 3);
+        return;
+    }
 
-	FRHITextureCreateDesc Desc =
-		FRHITextureCreateDesc::Create2D(TEXT("Illumination Buffer"), Size.X, Size.Y, PixelFormat);
-	Desc.Flags |= TexCreate_ShaderResource | TexCreate_UAV;
-	Desc.NumMips = 1;
-	Desc.NumSamples = 1;
-	
-	for (int i = 0; i < 4; i++)
-	{
-		RWBuffers.Buffers[i] =
-			RHICreateTexture(Desc);
-		RWBuffers.UAVs[i] = GetCmdList().CreateUnorderedAccessView(RWBuffers.Buffers[i]);
-	}
+    FRHITextureCreateDesc Desc = FRHITextureCreateDesc::Create2D(TEXT("Illumination Buffer"), Size.X, Size.Y, PixelFormat);
+    Desc.Flags |= TexCreate_ShaderResource | TexCreate_UAV;
+    Desc.NumMips = 1;
+    Desc.NumSamples = 1;
+
+    for (int i = 0; i < 4; i++)
+    {
+        RWBuffers.Buffers[i] = RHICreateTexture(Desc);
+        RWBuffers.UAVs[i] = GetCmdList().CreateUnorderedAccessView(RWBuffers.Buffers[i]);
+    }
 }
 
 void URaymarchUtils::ReleaseOneAxisReadWriteBufferResources(OneAxisReadWriteBufferResources& Buffer)
 {
-	for (FUnorderedAccessViewRHIRef& UAV : Buffer.UAVs)
-	{
-		if (UAV)
-		{
-			UAV.SafeRelease();
-		}
-		UAV = nullptr;
-	}
+    for (FUnorderedAccessViewRHIRef& UAV : Buffer.UAVs)
+    {
+        if (UAV)
+        {
+            UAV.SafeRelease();
+        }
+        UAV = nullptr;
+    }
 
-	for (FTexture2DRHIRef& TextureRef : Buffer.Buffers)
-	{
-		if (TextureRef)
-		{
-			TextureRef.SafeRelease();
-		}
-		TextureRef = nullptr;
-	}
+    for (FTexture2DRHIRef& TextureRef : Buffer.Buffers)
+    {
+        if (TextureRef)
+        {
+            TextureRef.SafeRelease();
+        }
+        TextureRef = nullptr;
+    }
 }
 
 void URaymarchUtils::GetVolumeTextureDimensions(UVolumeTexture* Texture, FIntVector& Dimensions)
 {
-	if (Texture)
-	{
-		// This is slightly retarded...
-		Dimensions = FIntVector(Texture->GetSizeX(), Texture->GetSizeY(), Texture->GetSizeZ());
-	}
-	else
-	{
-		Dimensions = FIntVector(0, 0, 0);
-	}
+    if (Texture)
+    {
+        // This is slightly retarded...
+        Dimensions = FIntVector(Texture->GetSizeX(), Texture->GetSizeY(), Texture->GetSizeZ());
+    }
+    else
+    {
+        Dimensions = FIntVector(0, 0, 0);
+    }
 }
 
 void URaymarchUtils::TransformToMatrix(const FTransform Transform, FMatrix& OutMatrix, bool WithScaling)
 {
-	if (WithScaling)
-	{
-		OutMatrix = Transform.ToMatrixWithScale();
-	}
-	else
-	{
-		OutMatrix = Transform.ToMatrixNoScale();
-	}
+    if (WithScaling)
+    {
+        OutMatrix = Transform.ToMatrixWithScale();
+    }
+    else
+    {
+        OutMatrix = Transform.ToMatrixNoScale();
+    }
 }
 
 void URaymarchUtils::LocalToTextureCoords(FVector LocalCoords, FVector& TextureCoords)
 {
-	TextureCoords = (LocalCoords / 2.0f) + 0.5f;
+    TextureCoords = (LocalCoords / 2.0f) + 0.5f;
 }
 
 void URaymarchUtils::TextureToLocalCoords(FVector TextureCoors, FVector& LocalCoords)
 {
-	LocalCoords = (TextureCoors - 0.5f) * 2.0f;
+    LocalCoords = (TextureCoors - 0.5f) * 2.0f;
 }
 
 #undef LOCTEXT_NAMESPACE
+#pragma optimize("", on)

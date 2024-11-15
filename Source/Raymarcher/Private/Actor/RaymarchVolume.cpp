@@ -138,7 +138,6 @@ void ARaymarchVolume::PostRegisterAllComponents()
 		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
 		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeMip, OctreeVolumeMip);
 		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeStartingMip, OctreeStartingMip);
-		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeStartingMip, OctreeStartingMip);
 	}
 
 	if (StaticMeshComponent)
@@ -196,6 +195,8 @@ void ARaymarchVolume::OnVolumeAssetChangedTF(UCurveLinearColor* Curve)
 	{
 		CurrentTFCurve->OnUpdateCurve.AddUObject(this, &ARaymarchVolume::OnTFColorCurveUpdated);
 	}
+
+    SetMaterialWindowingParameters();
 }
 
 void ARaymarchVolume::OnTFColorCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType)
@@ -754,12 +755,9 @@ void ARaymarchVolume::SetMaterialWindowingParameters()
 		OctreeRaymarchMaterial->SetVectorParameterValue(
 			RaymarchParams::WindowingParams, RaymarchResources.WindowingParameters.ToLinearColor());
 
-		FVector4 WindowMask = URaymarchUtils::GetWindowingParamsBitMask(RaymarchResources.WindowingParameters, WindowMaskEdgeBitsCount, RaymarchResources.TFTextureRef);
+		FVector4 WindowMask = URaymarchUtils::GetBitMaskFromWindowedTFCurve(RaymarchResources.WindowingParameters, WindowMaskEdgeBitsCount, CurrentTFCurve);
 		FLinearColor LinearColor(WindowMask.X, WindowMask.Y, WindowMask.Z, WindowMask.W);
 		OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::WindowMask, LinearColor);
-
-		// Uncomment to debug window bit mask.
-		// GEngine->AddOnScreenDebugMessage(324, 100, FColor::Orange, std::bitset<32>(LinearColor.R).to_string().c_str());
 	}
 }
 
@@ -778,6 +776,7 @@ void ARaymarchVolume::SetMaterialClippingParameters()
 		IntensityRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingCenter, LocalClippingparameters.Center);
 		IntensityRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingDirection, LocalClippingparameters.Direction);
 	}
+    
 	if (OctreeRaymarchMaterial)
 	{
 		OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingCenter, LocalClippingparameters.Center);
@@ -855,6 +854,8 @@ void ARaymarchVolume::SwitchRenderer(ERaymarchMaterial InSelectRaymarchMaterial)
 			StaticMeshComponent->SetMaterial(0, OctreeRaymarchMaterial);
 			break;
 	}
+
+    SetMaterialWindowingParameters();
 }
 
 void ARaymarchVolume::SetRaymarchSteps(float InRaymarchingSteps)
