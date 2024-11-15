@@ -136,8 +136,10 @@ FFloat16Color SampleFromTexture(float U, float V, UTexture2D* TF)
     return SampleColor;
 }
 
-FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(FWindowingParameters WindowingParams, int EdgeBits, UCurveLinearColor* CurveTF)
+FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
+    FWindowingParameters WindowingParams, int EdgeBits, UCurveLinearColor* CurveTF)
 {
+    constexpr float MINIMUM_NON_TRANSPARENT = 0.002f;
     // Get min and max window values
     float MinWindowVal = (WindowingParams.Center - (WindowingParams.Width / 2.0));
     float MaxWindowVal = (WindowingParams.Center + (WindowingParams.Width / 2.0));
@@ -155,15 +157,7 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(FWindowingParameters Wind
     uint32_t MinWindowBit = FMath::Clamp(BitPositionForValue(MinWindowVal), 0, MaxNumberOfBits);
     uint32_t MaxWindowBit = FMath::Clamp(BitPositionForValue(MaxWindowVal), 0, MaxNumberOfBits);
 
-    if (!WindowingParams.LowCutoff)
-    {
-        MinWindowBit = 0;
-    }
-
-    if (!WindowingParams.HighCutoff)
-    {
-        MaxWindowBit = MaxNumberOfBits;
-    }
+    uint32_t Result = 0;
 
     // Handle negative window sizes
     if (MinWindowBit > MaxWindowBit)
@@ -171,19 +165,50 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(FWindowingParameters Wind
         Swap(MinWindowBit, MaxWindowBit);
     }
 
-    uint32_t Result = 0;
+    if (!WindowingParams.LowCutoff)
+    {
+        FLinearColor MinColor = CurveTF->GetLinearColorValue(0.0f);
+        if (MinColor.A > MINIMUM_NON_TRANSPARENT)
+        {
+            // Bottom of TF is not transparent and we're not clipping low values -> need to mark all the low bits as
+            // bits-of-interest
+            for (uint32_t BitNum = 0; BitNum < MinWindowBit; BitNum++)
+            {
+                Result |= (1 << BitNum);
+            }
+        }
+    }
+
+    if (!WindowingParams.HighCutoff)
+    {
+        FLinearColor MaxColor = CurveTF->GetLinearColorValue(1.0f);
+        if (MaxColor.A > MINIMUM_NON_TRANSPARENT)
+        {
+            // Top of TF is not transparent and we're not clipping higher values -> need to mark all the above bits as
+            // bits-of-interest
+            for (uint32_t BitNum = 0; BitNum < MinWindowBit; BitNum++)
+            {
+                Result |= (1 << BitNum);
+            }
+        }
+    }
+
     // Sample the current value from the curve and set to relevant bit to non-zero if the curve alpha is non-zero
     for (uint32_t BitNum = MinWindowBit; BitNum <= MaxWindowBit; BitNum++)
     {
+        // Sample multiple times for each bit to make sure that we don't miss a non-zero part of the range
+        // (e.g. TF could have alpha 0 at time 0, but alpha 0.1 at time 0.02, that would be missed without sampling multiple
+        // times per-bucket
         uint32_t SamplesPerBit = 16;
         float SamplingOffset = Factor / SamplesPerBit;
         for (uint32_t SampleNum = 0; SampleNum < SamplesPerBit; SampleNum++)
         {
-            FLinearColor TFColor = CurveTF->GetLinearColorValue(WindowingParams.GetPositionInWindow((Factor * BitNum) + SamplingOffset));
+            FLinearColor TFColor =
+                CurveTF->GetLinearColorValue(WindowingParams.GetPositionInWindow((Factor * BitNum) + SamplingOffset));
             if (TFColor.A > 0.001)
             {
                 Result |= (1 << BitNum);
-                break; // Only breaks inner loop.
+                break;    // Only breaks inner loop.
             }
         }
     }
@@ -195,13 +220,13 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(FWindowingParameters Wind
         Result |= (Result >> 1);
     }
 
+    // Use to output mask.
     std::bitset<32> bitmask(Result);
-    // Use for debug purpose.
     GEngine->AddOnScreenDebugMessage(54, 100, FColor::Orange,
         FString::Printf(TEXT("Bitmask (min = right, max = left) : %s"), (UTF8_TO_TCHAR(bitmask.to_string().c_str()))));
 
-    // we bitcast into a float so we can pass it through the material editor. It gets bit-cast back to uint.
-    float FloatValue = std::bit_cast<float>(Result);
+    // we bitcast into a float so we can pass it through the material editor. It gets "bit-cast" back to uint in the shader
+    const float FloatValue = std::bit_cast<float>(Result);
     return FVector4(FloatValue, 0, 0, 0);
 }
 
