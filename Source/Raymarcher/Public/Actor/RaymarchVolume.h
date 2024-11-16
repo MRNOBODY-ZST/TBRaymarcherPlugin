@@ -25,7 +25,9 @@ enum class ERaymarchMaterial : uint8
 {
     Lit,
     Intensity,
-    Octree
+    Octree,
+    Debug1,
+    Debug2
 };
 
 UCLASS()
@@ -114,8 +116,6 @@ public:
     /** Override ShouldTickIfViewportsOnly to return true, so this also ticks in editor viewports.*/
     virtual bool ShouldTickIfViewportsOnly() const override;
 
-    void SetOctreeLightParamters();
-
 #endif    // #if WITH_EDITOR
 
     /** Called every frame */
@@ -140,6 +140,14 @@ public:
     UPROPERTY(BlueprintReadOnly, EditAnywhere)
     UMaterial* OctreeRaymarchMaterialBase;
 
+    /** The base material for intensity rendering.*/
+    UPROPERTY(BlueprintReadOnly, EditAnywhere)
+    UMaterial* Debug1RaymarchMaterialBase;
+    
+    /** The base material for intensity rendering.*/
+    UPROPERTY(BlueprintReadOnly, EditAnywhere)
+    UMaterial* Debug2RaymarchMaterialBase;
+    
     /** Dynamic material instance for Lit rendering*/
     UPROPERTY(BlueprintReadOnly, Transient)
     UMaterialInstanceDynamic* LitRaymarchMaterial = nullptr;
@@ -152,6 +160,14 @@ public:
     UPROPERTY(BlueprintReadOnly, Transient)
     UMaterialInstanceDynamic* OctreeRaymarchMaterial = nullptr;
 
+    /** Dynamic material instance for octree rendering*/
+    UPROPERTY(BlueprintReadOnly, Transient)
+    UMaterialInstanceDynamic* Debug1RaymarchMaterial = nullptr;
+    
+    /** Dynamic material instance for octree rendering*/
+    UPROPERTY(BlueprintReadOnly, Transient)
+    UMaterialInstanceDynamic* Debug2RaymarchMaterial = nullptr;
+    
     /** Cube border mesh - this is just a cube with wireframe borders.**/
     UPROPERTY(VisibleAnywhere)
     UStaticMeshComponent* CubeBorderMeshComponent = nullptr;
@@ -173,10 +189,6 @@ public:
     /** An array of lights affecting this volume.**/
     UPROPERTY(EditAnywhere, meta = (EditCondition = "SelectRaymarchMaterial == ERaymarchMaterial::Lit", EditConditionHides))
     TArray<ARaymarchLight*> LightsArray;
-
-    /** Single light used for rendering octree lit raymarch */
-    UPROPERTY(EditAnywhere, meta = (EditCondition = "SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
-    ARaymarchLight* OctreeLight;
 
     /** Raymarch Rendering resources. These contain references to the volume texture currently used, the light volume
         currently used, as well as buffers to fasten the light propagation.	**/

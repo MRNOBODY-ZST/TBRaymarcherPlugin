@@ -22,8 +22,6 @@ const FName AFractalVisualizerScreen::VisMat_SpecularParam = "Specular";
 const FName AFractalVisualizerScreen::VisMat_HeightMapParam = "HeightMap";
 const FName AFractalVisualizerScreen::VisMat_NormalMapParam = "NormalMap";
 
-#pragma optimize("", off)
-
 // Sets default values
 AFractalVisualizerScreen::AFractalVisualizerScreen()
 {
@@ -198,5 +196,3 @@ void AFractalVisualizerScreen::SetBlendColorHigh(FLinearColor& Color)
         Material->SetVectorParameterValue(VisMat_BlendColorHighParam, BlendColorHigh);
     }
 }
-
-#pragma optimize("", on)

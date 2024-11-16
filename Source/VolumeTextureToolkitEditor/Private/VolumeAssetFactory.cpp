@@ -30,7 +30,6 @@ UVolumeAssetFactory::UVolumeAssetFactory(const FObjectInitializer& ObjectInitial
     ImportPriority = DefaultImportPriority - 10;
 }
 
-#pragma optimize("", off)
 UObject* UVolumeAssetFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
     const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
@@ -126,4 +125,3 @@ UObject* UVolumeAssetFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 
     return OutVolume;
 }
-#pragma optimize("", on)

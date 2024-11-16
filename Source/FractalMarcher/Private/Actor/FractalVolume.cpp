@@ -9,9 +9,6 @@
 
 DEFINE_LOG_CATEGORY(LogFractalMarchVolume)
 
-// Uncomment for easier debugging
-// #pragma optimize("", off)
-
 // Sets default values
 AFractalVolume::AFractalVolume() : AActor()
 {
@@ -187,6 +184,3 @@ void AFractalVolume::InitializeFractalMarchResources()
         RHICreateUnorderedAccessView(MandelbulbResources.MandelbulbVolume->GetResource()->TextureRHI);
     FlushRenderingCommands();
 }
-
-// Uncomment for easier debugging
-// #pragma optimize("", on)

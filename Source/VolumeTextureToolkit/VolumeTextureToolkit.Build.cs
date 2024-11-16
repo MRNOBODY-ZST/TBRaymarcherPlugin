@@ -14,7 +14,8 @@ public class VolumeTextureToolkit : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
 
 		CppStandard = CppStandardVersion.Cpp20;
-
+		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
+		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

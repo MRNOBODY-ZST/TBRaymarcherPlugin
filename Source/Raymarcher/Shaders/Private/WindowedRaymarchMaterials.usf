@@ -230,8 +230,8 @@ float4 PerformWindowedRaymarchOctree(Texture3D DataVolume, // Data Volume
     return LightEnergy;
 }
 
-// Performs octree raymarch for the current pixel.
-float4 DebugRaymarch(Texture3D DataVolume, // Data Volume 
+// Performs debug raymarch 1 for the current pixel.
+float4 PerformDebug1Raymarch(Texture3D DataVolume, // Data Volume 
                      SamplerState DataVolumeSampler,
                      Texture2D TF, // Transfer function texture.
                      float3 EntryPos, float Thickness, // CurPos = Entry Position, Thickness is thickness of cube along the ray. Both in UVW space.
@@ -239,12 +239,36 @@ float4 DebugRaymarch(Texture3D DataVolume, // Data Volume
                      float4 WindowingParams,
                      Texture3D OctreeVolume,
                      SamplerState OctreeVolumeSampler,
+                     Texture3D LightVolume,
+                     SamplerState LightVolumeSampler,
                      float4 WindowMask,
-                     float4 LightParams,
                      FMaterialPixelParameters MaterialParameters) // Material Parameters provided by UE.
 {
     return float4(EntryPos, 1.0f);
 }
+
+// Performs debug raymarch 2 for the current pixel.
+float4 PerformDebug2Raymarch(Texture3D DataVolume, // Data Volume 
+                     SamplerState DataVolumeSampler,
+                     Texture2D TF, // Transfer function texture.
+                     float3 EntryPos, float Thickness, // CurPos = Entry Position, Thickness is thickness of cube along the ray. Both in UVW space.
+                     float StepCount, // How many steps we should take. Actual number of steps taken is StepCount * Thickness.
+                     float4 WindowingParams,
+                     Texture3D OctreeVolume,
+                     SamplerState OctreeVolumeSampler,
+                     Texture3D LightVolume,
+                     SamplerState LightVolumeSampler,
+                     float4 WindowMask,
+                     FMaterialPixelParameters MaterialParameters) // Material Parameters provided by UE.
+{
+    
+    float StepSize = 1 / StepCount;
+    // Get camera vector in local space and multiply it by step size.
+    float3 LocalCamVec = -normalize(mul(MaterialParameters.CameraVector, LWCHackToFloat(GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal))) * StepSize;
+	
+    return float4(EntryPos + (Thickness*normalize(LocalCamVec)), 1.0f);
+}
+
 
 
 // Performs lit raymarch for the current pixel. The lighting information is taken from a precomputed light volume.

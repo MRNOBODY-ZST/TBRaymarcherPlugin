@@ -57,6 +57,11 @@ struct FWindowingParameters
     {
         return (inValue - Center + (Width / 2.0)) / Width;
     }
+
+    float GetValueFromWindowPosition(float inWindowValue) const
+    {
+        return Center + (inWindowValue - 0.5f) * Width;
+    }
 };
 
 /// Contains information about the volume loaded from the Various volumetric data file formats supported.

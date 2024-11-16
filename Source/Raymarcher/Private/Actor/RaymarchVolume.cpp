@@ -22,10 +22,6 @@
 
 DEFINE_LOG_CATEGORY(LogRaymarchVolume)
 
-#if !UE_BUILD_SHIPPING
-#pragma optimize("", off)
-#endif
-
 // Sets default values
 ARaymarchVolume::ARaymarchVolume() : AActor()
 {
@@ -75,6 +71,8 @@ ARaymarchVolume::ARaymarchVolume() : AActor()
     static ConstructorHelpers::FObjectFinder<UMaterial> IntensityMaterial(
         TEXT("/TBRaymarcherPlugin/Materials/M_Intensity_Raymarch"));
     static ConstructorHelpers::FObjectFinder<UMaterial> OctreeMaterial(TEXT("/TBRaymarcherPlugin/Materials/M_Octree_Raymarch"));
+    static ConstructorHelpers::FObjectFinder<UMaterial> Debug1Material(TEXT("/TBRaymarcherPlugin/Materials/M_Debug1_Raymarch"));
+    static ConstructorHelpers::FObjectFinder<UMaterial> Debug2Material(TEXT("/TBRaymarcherPlugin/Materials/M_Debug2_Raymarch"));
 
     if (LitMaterial.Succeeded())
     {
@@ -91,6 +89,15 @@ ARaymarchVolume::ARaymarchVolume() : AActor()
         OctreeRaymarchMaterialBase = OctreeMaterial.Object;
     }
 
+    if (Debug1Material.Succeeded())
+    {
+        Debug1RaymarchMaterialBase = Debug1Material.Object;
+    }
+
+    if (Debug2Material.Succeeded())
+    {
+        Debug2RaymarchMaterialBase = Debug2Material.Object;
+    }
     // Set default values for steps and half-res.
     RaymarchingSteps = 150;
     RaymarchResources.LightVolumeHalfResolution = false;
@@ -118,7 +125,6 @@ void ARaymarchVolume::PostRegisterAllComponents()
     if (LitRaymarchMaterialBase)
     {
         LitRaymarchMaterial = UMaterialInstanceDynamic::Create(LitRaymarchMaterialBase, this, "Lit Raymarch Mat Dynamic Inst");
-        // Set default values for the lit and intensity raymarchers.
         LitRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
     }
 
@@ -134,9 +140,23 @@ void ARaymarchVolume::PostRegisterAllComponents()
     {
         OctreeRaymarchMaterial =
             UMaterialInstanceDynamic::Create(OctreeRaymarchMaterialBase, this, "Octree Raymarch Mat Dynamic Inst");
-        // Set default valuees for the octree raymarch material.
         OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
-        OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeMip, OctreeVolumeMip);
+    }
+
+    if (Debug1RaymarchMaterialBase)
+    {
+        Debug1RaymarchMaterial =
+            UMaterialInstanceDynamic::Create(Debug1RaymarchMaterialBase, this, "Debug 1 Raymarch Mat Dynamic Inst");
+        Debug1RaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
+        Debug1RaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeMip, OctreeVolumeMip);
+    }
+
+    if (Debug2RaymarchMaterialBase)
+    {
+        Debug2RaymarchMaterial =
+            UMaterialInstanceDynamic::Create(Debug2RaymarchMaterialBase, this, "Debug 2 Raymarch Mat Dynamic Inst");
+        Debug2RaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
+        Debug2RaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeMip, OctreeVolumeMip);
     }
 
     if (StaticMeshComponent)
@@ -152,6 +172,14 @@ void ARaymarchVolume::PostRegisterAllComponents()
         else if (OctreeRaymarchMaterial && SelectRaymarchMaterial == ERaymarchMaterial::Octree)
         {
             StaticMeshComponent->SetMaterial(0, OctreeRaymarchMaterial);
+        }
+        else if (OctreeRaymarchMaterial && SelectRaymarchMaterial == ERaymarchMaterial::Debug1)
+        {
+            StaticMeshComponent->SetMaterial(0, Debug1RaymarchMaterial);
+        }
+        else if (OctreeRaymarchMaterial && SelectRaymarchMaterial == ERaymarchMaterial::Debug2)
+        {
+            StaticMeshComponent->SetMaterial(0, Debug2RaymarchMaterial);
         }
     }
 
@@ -231,19 +259,6 @@ void ARaymarchVolume::OnImageInfoChangedInEditor()
             LastTimeReset = CurrentTime;
         }
     }
-}
-
-void ARaymarchVolume::SetOctreeLightParamters()
-{
-    FVector LightDirection = OctreeLight->GetCurrentParameters().LightDirection;
-
-    GEngine->AddOnScreenDebugMessage(23, 10, FColor::Orange, FString("Light Direction: ") + LightDirection.ToString());
-
-    float LightIntensity = OctreeLight->GetCurrentParameters().LightIntensity;
-
-    OctreeRaymarchMaterial->SetVectorParameterValue(
-        RaymarchParams::LightParams, FLinearColor(static_cast<float>(LightDirection.X), static_cast<float>(LightDirection.Y),
-                                         static_cast<float>(LightDirection.Z), LightIntensity));
 }
 
 void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -387,10 +402,6 @@ void ARaymarchVolume::Tick(float DeltaTime)
         // We rebuild the octree. Set to false to prevent additional unwanted rebuild.
         bRequestedOctreeRebuild = false;
     }
-    if (OctreeLight && SelectRaymarchMaterial == ERaymarchMaterial::Octree)
-    {
-        SetOctreeLightParamters();
-    }
 
     // Only check if we need to update lights if we're using Lit raymarch material.
     // (No point in recalculating a light volume that's not currently being used anyways).
@@ -482,12 +493,12 @@ void ARaymarchVolume::ResetAllLights()
 
 void ARaymarchVolume::UpdateSingleLight(ARaymarchLight* UpdatedLight)
 {
-    bool bLightAddWasSuccessful = false;
+    bool bLightChangeWasSuccessful = false;
 
     URaymarchUtils::ChangeDirLightInSingleVolume(RaymarchResources, LightParametersMap[UpdatedLight],
-        UpdatedLight->GetCurrentParameters(), WorldParameters, bLightAddWasSuccessful);
+        UpdatedLight->GetCurrentParameters(), WorldParameters, bLightChangeWasSuccessful);
 
-    if (!bLightAddWasSuccessful)
+    if (!bLightChangeWasSuccessful)
     {
         FString log = "Error. Could not change light " + UpdatedLight->GetName() + " in volume " + GetName() + " .";
         UE_LOG(LogRaymarchVolume, Error, TEXT("%s"), *log, 3);
@@ -602,6 +613,8 @@ void ARaymarchVolume::SetTFCurve(UCurveLinearColor* InTFCurve)
         // Set TF Texture to the lit and octree material.
         LitRaymarchMaterial->SetTextureParameterValue(RaymarchParams::TransferFunction, RaymarchResources.TFTextureRef);
         OctreeRaymarchMaterial->SetTextureParameterValue(RaymarchParams::TransferFunction, RaymarchResources.TFTextureRef);
+        Debug1RaymarchMaterial->SetTextureParameterValue(RaymarchParams::TransferFunction, RaymarchResources.TFTextureRef);
+        Debug2RaymarchMaterial->SetTextureParameterValue(RaymarchParams::TransferFunction, RaymarchResources.TFTextureRef);
         SetMaterialWindowingParameters();
         bRequestedRecompute = true;
     }
@@ -660,20 +673,20 @@ bool ARaymarchVolume::LoadMHDFileIntoVolumeNormalized(FString FileName, bool bPe
 
 FRaymarchWorldParameters ARaymarchVolume::GetWorldParameters()
 {
-    FRaymarchWorldParameters retVal;
+    FRaymarchWorldParameters RetVal;
     if (ClippingPlane)
     {
-        retVal.ClippingPlaneParameters = ClippingPlane->GetCurrentParameters();
+        RetVal.ClippingPlaneParameters = ClippingPlane->GetCurrentParameters();
     }
     else
     {
         // Set clipping plane parameters to ridiculously far and facing away, so that the volume doesn't get clipped at all
-        retVal.ClippingPlaneParameters.Center = FVector(0, 0, 100000);
-        retVal.ClippingPlaneParameters.Direction = FVector(0, 0, -1);
+        RetVal.ClippingPlaneParameters.Center = FVector(0, 0, 100000);
+        RetVal.ClippingPlaneParameters.Direction = FVector(0, 0, -1);
     }
 
-    retVal.VolumeTransform = StaticMeshComponent->GetComponentTransform();
-    return retVal;
+    RetVal.VolumeTransform = StaticMeshComponent->GetComponentTransform();
+    return RetVal;
 }
 
 void ARaymarchVolume::UpdateWorldParameters()
@@ -737,8 +750,10 @@ void ARaymarchVolume::SetMaterialWindowingParameters()
 
         FVector4 WindowMask = URaymarchUtils::GetBitMaskFromWindowedTFCurve(
             RaymarchResources.WindowingParameters, WindowMaskEdgeBitsCount, CurrentTFCurve);
-        FLinearColor LinearColor(WindowMask.X, WindowMask.Y, WindowMask.Z, WindowMask.W);
-        OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::WindowMask, LinearColor);
+        FLinearColor MaskAsColor(WindowMask.X, WindowMask.Y, WindowMask.Z, WindowMask.W);
+        // Because we use float as a bitfield, equality ops actually fuck up here -> set to zero and back to avoid that.
+        OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::WindowMask, FLinearColor{0.0f, 0.0f, 0.0f, 1.0f});
+        OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::WindowMask, MaskAsColor);
     }
 }
 
@@ -746,22 +761,15 @@ void ARaymarchVolume::SetMaterialClippingParameters()
 {
     // Get the Clipping Plane parameters and transform them to local space.
     FClippingPlaneParameters LocalClippingparameters = GetLocalClippingParameters(WorldParameters);
-    if (LitRaymarchMaterial)
-    {
-        LitRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingCenter, LocalClippingparameters.Center);
-        LitRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingDirection, LocalClippingparameters.Direction);
-    }
 
-    if (IntensityRaymarchMaterial)
+    for (UMaterialInstanceDynamic* MaterialInstance :
+        {LitRaymarchMaterial, IntensityRaymarchMaterial, OctreeRaymarchMaterial, Debug1RaymarchMaterial, Debug2RaymarchMaterial})
     {
-        IntensityRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingCenter, LocalClippingparameters.Center);
-        IntensityRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingDirection, LocalClippingparameters.Direction);
-    }
-
-    if (OctreeRaymarchMaterial)
-    {
-        OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingCenter, LocalClippingparameters.Center);
-        OctreeRaymarchMaterial->SetVectorParameterValue(RaymarchParams::ClippingDirection, LocalClippingparameters.Direction);
+        if (MaterialInstance)
+        {
+            MaterialInstance->SetVectorParameterValue(RaymarchParams::ClippingCenter, LocalClippingparameters.Center);
+            MaterialInstance->SetVectorParameterValue(RaymarchParams::ClippingDirection, LocalClippingparameters.Direction);
+        }
     }
 }
 
@@ -834,6 +842,12 @@ void ARaymarchVolume::SwitchRenderer(ERaymarchMaterial InSelectRaymarchMaterial)
         case ERaymarchMaterial::Octree:
             StaticMeshComponent->SetMaterial(0, OctreeRaymarchMaterial);
             break;
+        case ERaymarchMaterial::Debug1:
+            StaticMeshComponent->SetMaterial(0, Debug1RaymarchMaterial);
+            break;
+        case ERaymarchMaterial::Debug2:
+            StaticMeshComponent->SetMaterial(0, Debug2RaymarchMaterial);
+            break;
     }
 
     SetMaterialWindowingParameters();
@@ -842,19 +856,14 @@ void ARaymarchVolume::SwitchRenderer(ERaymarchMaterial InSelectRaymarchMaterial)
 void ARaymarchVolume::SetRaymarchSteps(float InRaymarchingSteps)
 {
     RaymarchingSteps = InRaymarchingSteps;
-    if (LitRaymarchMaterial)
-    {
-        LitRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
-    }
 
-    if (IntensityRaymarchMaterial)
+    for (UMaterialInstanceDynamic* MaterialInstance :
+        {LitRaymarchMaterial, IntensityRaymarchMaterial, OctreeRaymarchMaterial, Debug1RaymarchMaterial, Debug2RaymarchMaterial})
     {
-        IntensityRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
-    }
-
-    if (OctreeRaymarchMaterial)
-    {
-        OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
+        if (MaterialInstance)
+        {
+            MaterialInstance->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
+        }
     }
 }
 
@@ -987,7 +996,3 @@ void ARaymarchVolume::FreeRaymarchResources()
         });
     FlushRenderingCommands();
 }
-
-#if !UE_BUILD_SHIPPING
-#pragma optimize("", on)
-#endif

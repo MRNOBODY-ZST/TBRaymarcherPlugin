@@ -11,10 +11,6 @@
 #include "Runtime/RenderCore/Public/RenderUtils.h"
 #include "Util/UtilityShaders.h"
 
-#if !UE_BUILD_SHIPPING
-#pragma optimize("", off)
-#endif
-
 #define LOCTEXT_NAMESPACE "RaymarchPlugin"
 
 IMPLEMENT_GLOBAL_SHADER(FAddDirLightShader, "/Raymarcher/Private/AddDirLightShader.usf", "MainComputeShader", SF_Compute);
@@ -326,7 +322,3 @@ void ChangeDirLightInSingleLightVolume_RenderThread(FRHICommandListImmediate& RH
 }
 
 #undef LOCTEXT_NAMESPACE
-
-#if !UE_BUILD_SHIPPING
-#pragma optimize("", on)
-#endif

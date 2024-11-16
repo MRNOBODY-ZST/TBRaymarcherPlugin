@@ -25,8 +25,6 @@
 #pragma pop_macro("verify")
 #pragma pop_macro("check")
 
-#pragma optimize("", off)
-
 DEFINE_LOG_CATEGORY(LogDCMTK);
 
 UDCMTKLoader::UDCMTKLoader()
@@ -593,5 +591,3 @@ TUniquePtr<uint8[]> UDCMTKLoader::LoadAndConvertData(
 
     return Data;
 }
-
-#pragma optimize("", on)

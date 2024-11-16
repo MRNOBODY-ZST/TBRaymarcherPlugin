@@ -7,8 +7,6 @@
 
 #include "Kismet/KismetRenderingLibrary.h"
 
-#pragma optimize("", off)
-
 const FName AFractalVideoProcessor::NormalMapMat_IntensityParam = "NormalMapIntensity";
 const FName AFractalVideoProcessor::NormalMapMat_UVOffsetParam = "HeightMapUVOffset";
 const FName AFractalVideoProcessor::NormalMapMat_HeightMapParam = "HeightMap";
@@ -260,5 +258,3 @@ void AFractalVideoProcessor::SetNormalMapIntensity(float NewIntensity)
         UE_LOG(LogTemp, Error, TEXT("SetNormalMapIntensity called, but dynamic Normal Map material doesn't exist."));
     }
 }
-
-#pragma optimize("", on)

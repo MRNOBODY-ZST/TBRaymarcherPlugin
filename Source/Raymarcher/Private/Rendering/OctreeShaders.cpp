@@ -9,10 +9,6 @@
 #include "Runtime/RenderCore/Public/RenderUtils.h"
 #include "Util/UtilityShaders.h"
 
-#if !UE_BUILD_SHIPPING
-#pragma optimize("", off)
-#endif
-
 #define LOCTEXT_NAMESPACE "RaymarchPlugin"
 
 IMPLEMENT_GLOBAL_SHADER(FGenerateOctreeShader, "/Raymarcher/Private/GenerateOctreeShader.usf", "MainComputeShader", SF_Compute);
@@ -54,7 +50,3 @@ void GenerateOctreeForVolume_RenderThread(FRHICommandListImmediate& RHICmdList, 
 }
 
 #undef LOCTEXT_NAMESPACE
-
-#if !UE_BUILD_SHIPPING
-#pragma optimize("", on)
-#endif

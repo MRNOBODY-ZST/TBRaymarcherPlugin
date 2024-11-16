@@ -28,14 +28,6 @@
 
 #define LOCTEXT_NAMESPACE "RaymarchPlugin"
 
-#pragma optimize("", off)
-
-// void URaymarchUtils::InitLightVolume(UVolumeTexture*& LightVolume, FIntVector Dimensions)
-// {
-// 	// FMemory::Memset(InitMemory, 1, TotalSize);
-// 	CreateVolumeTextureTransient(LightVolume, PF_R32_FLOAT, Dimensions, nullptr);
-// }
-
 void URaymarchUtils::AddDirLightToSingleVolume(const FBasicRaymarchRenderingResources& Resources,
     const FDirLightParameters& LightParameters, const bool Added, const FRaymarchWorldParameters WorldParameters, bool& LightAdded,
     bool bGPUSync)
@@ -142,12 +134,12 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
     // Minimum alpha to consider a color non-transparent
     constexpr float MINIMUM_ALPHA = 0.001f;
     // Get min and max window values
-    float MinWindowVal = (WindowingParams.Center - (WindowingParams.Width / 2.0));
-    float MaxWindowVal = (WindowingParams.Center + (WindowingParams.Width / 2.0));
+    float MinWindowVal = WindowingParams.GetValueFromWindowPosition(0.0f);
+    float MaxWindowVal = WindowingParams.GetValueFromWindowPosition(1.0f);
 
     // Clamp the values since we do not expect negative value in currently rendered volume.
-    MinWindowVal = FMath::Clamp(MinWindowVal, 0.0f, 1.0f);
-    MaxWindowVal = FMath::Clamp(MaxWindowVal, 0.0f, 1.0f);
+    float MinWindowValClamped = FMath::Clamp(MinWindowVal, 0.0f, 1.0f);
+    float MaxWindowValClamped = FMath::Clamp(MaxWindowVal, 0.0f, 1.0f);
 
     // Define the maximal number of bits in bitmask window.
     static constexpr uint32_t MaxNumberOfBits = 31;
@@ -155,8 +147,8 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
 
     auto BitPositionForValue = [&](float Val) -> uint32_t { return static_cast<uint32_t>(Val / Factor); };
 
-    uint32_t MinWindowBit = FMath::Clamp(BitPositionForValue(MinWindowVal), 0, MaxNumberOfBits);
-    uint32_t MaxWindowBit = FMath::Clamp(BitPositionForValue(MaxWindowVal), 0, MaxNumberOfBits);
+    uint32_t MinWindowBit = FMath::Clamp(BitPositionForValue(MinWindowValClamped), 0, MaxNumberOfBits);
+    uint32_t MaxWindowBit = FMath::Clamp(BitPositionForValue(MaxWindowValClamped), 0, MaxNumberOfBits);
 
     uint32_t Result = 0;
 
@@ -187,26 +179,28 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
         {
             // Top of TF is not transparent and we're not clipping higher values -> need to mark all the above bits as
             // bits-of-interest
-            for (uint32_t BitNum = MaxWindowBit; BitNum < MaxNumberOfBits; BitNum++)
+            for (uint32_t BitNum = MaxWindowBit; BitNum <= MaxNumberOfBits; BitNum++)
             {
                 Result |= (1 << BitNum);
             }
         }
     }
 
+    // if (!((MinWindowVal > 1.0f && MaxWindowVal > 1.0f) || (MinWindowVal < 0.0f && MaxWindowVal < 0.0f)))
+    // {
     // Sample the current value from the curve and set to relevant bit to non-zero if the curve alpha is non-zero
     for (uint32_t BitNum = MinWindowBit; BitNum <= MaxWindowBit; BitNum++)
     {
         // Sample multiple times for each bit to make sure that we don't miss a non-zero part of the range
         // (e.g. TF could have alpha 0 at time 0, but alpha 0.1 at time 0.02, that would be missed without sampling multiple
-        // times per-bucket
-        uint32_t SamplesPerBit = 16;
+        // times per-bucket)
+        uint32_t SamplesPerBit = 8;
         float SamplingOffset = Factor / SamplesPerBit;
         for (uint32_t SampleNum = 0; SampleNum < SamplesPerBit; SampleNum++)
         {
             FLinearColor TFColor =
                 CurveTF->GetLinearColorValue(WindowingParams.GetPositionInWindow((Factor * BitNum) + SamplingOffset));
-            if (TFColor.A > 0.001)
+            if (TFColor.A > MINIMUM_ALPHA)
             {
                 Result |= (1 << BitNum);
                 break;    // Only breaks inner loop.
@@ -220,6 +214,7 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
         Result |= (Result << 1);
         Result |= (Result >> 1);
     }
+    // }
 
     // Use to output mask.
     std::bitset<32> bitmask(Result);
@@ -379,4 +374,3 @@ void URaymarchUtils::TextureToLocalCoords(FVector TextureCoors, FVector& LocalCo
 }
 
 #undef LOCTEXT_NAMESPACE
-#pragma optimize("", on)

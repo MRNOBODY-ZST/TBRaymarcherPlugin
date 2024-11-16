@@ -32,7 +32,7 @@ void APerformanceTest1::Tick(float DeltaSeconds)
     static constexpr float RotateVolumeYawDuration = 4.0f;
     static constexpr float RotateVolumeRollDuration = 4.0f;
     static constexpr float RotatePlaneRollDuration = 4.0f;
-    static constexpr float RotatePlaneYawDuration = 4.0f;
+    static constexpr float RotatePlaneYawDuration = 8.0f;
 
     static constexpr float InitializationEnd = 5.0f;
     static constexpr float RecomputeTimeEnd = InitializationEnd + FirstRecomputeDuration;
@@ -44,9 +44,9 @@ void APerformanceTest1::Tick(float DeltaSeconds)
     static constexpr float RotatePlaneRollEnd = RotateVolumeRollEnd + RotatePlaneRollDuration;
     static constexpr float RotatePlaneYawEnd = RotatePlaneRollEnd + RotatePlaneYawDuration;
 
-    static constexpr float DefaultWindowCenter = 300.0f;
-    static constexpr float DefaultWindowWidth = 500.0f;
-    static constexpr float WindowCenterChangeSpeed = -200.0f;
+    static constexpr float DefaultWindowCenter = 250.0f;
+    static constexpr float DefaultWindowWidth = 200.0f;
+    static constexpr float WindowCenterChangeSpeed = -100.0f;
 
     // Iterate the test. Each if case is played every frame in the TimeWindow.
     if (CurrentTime < InitializationEnd)
@@ -192,7 +192,7 @@ void APerformanceTest1::Tick(float DeltaSeconds)
             return;
 
         FRotator Rotator = Plane->GetActorRotation();
-        const float Angle = DeltaSeconds * (360 / RotatePlaneYawDuration / 2);
+        const float Angle = DeltaSeconds * (360 / RotatePlaneYawDuration);
         Rotator.Yaw = Rotator.Yaw - Angle;
         Plane->SetActorRotation(Rotator);
     }
