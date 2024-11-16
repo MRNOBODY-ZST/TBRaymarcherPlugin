@@ -182,173 +182,68 @@ bool GetNextSignificantPosition(const Texture3D DataVolume, const Texture3D Octr
 float4 PerformWindowedRaymarchOctree(Texture3D DataVolume, // Data Volume 
                               SamplerState DataVolumeSampler,
                               Texture2D TF, // Transfer function texture.
-                              float3 CurPos, float Thickness, // CurPos = Entry Position, Thickness is thickness of cube along the ray. Both in UVW space.
+                              float3 EntryPos, float Thickness, // CurPos = Entry Position, Thickness is thickness of cube along the ray. Both in UVW space.
                               float StepCount, // How many steps we should take. Actual number of steps taken is StepCount * Thickness.
                               float4 WindowingParams,
                               Texture3D OctreeVolume,
                               SamplerState OctreeVolumeSampler,
-                              uint OctreeMip,
+                              Texture3D LightVolume,
+                              SamplerState LightVolumeSampler,
                               float4 WindowMask,
-                              uint StartingMip,
                               FMaterialPixelParameters MaterialParameters) // Material Parameters provided by UE.
 {
-	const float3 EntryPosition = CurPos;
-	// StepSize in UVW is inverse to StepCount.
-	float StepSize = 1 / StepCount;
-	// Actual number of steps to take to march through the full thickness of the cube at the ray position.
-	float FloatActualSteps = StepCount * Thickness;
+    // StepSize in UVW is inverse to StepCount.
+    float StepSize = 1 / StepCount;
 
-	// Get camera vector in local space and multiply it by step size.
-	float3 LocalCamVec = -normalize(mul(MaterialParameters.CameraVector, LWCHackToFloat(GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal))) * StepSize;
-
-	// Exit position in UV coordinates where the ray exits the volume.
-	float3 ExitPosition = EntryPosition + FloatActualSteps * LocalCamVec;
+    // Get camera vector in local space and multiply it by step size.
+    float3 LocalCamVec = -normalize(mul(MaterialParameters.CameraVector, LWCHackToFloat(GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal))) * StepSize;
 	
-	// Get step size in local units to get consistent opacity at different volume scale and to be consistent with compute shaders' opacity calculations.
+    // Get step size in local units to get consistent opacity at different volume scale and to be consistent with compute shaders' opacity calculations.
     float StepSizeWorld = VOLUME_DENSITY * StepSize;
-	// Initialize accumulated light energy.
-	float4 LightEnergy = 0;
-	// Jitter Entry position to avoid artifacts.
-	JitterEntryPos(CurPos, LocalCamVec, MaterialParameters);
 
-	
-	// Get the bit mask for the current TransferFunction with the current window width/center.
-	uint UintWindowMask = asuint(WindowMask.r);
-	// The distance the raymarch must pass to calculate required data.
-	float MaxDistance = length(EntryPosition - ExitPosition);
-	// Move the CurPos to the inside of the octree.  
-	do
-	{
-	    bool PositionFound = GetNextSignificantPosition(DataVolume, OctreeVolume, LocalCamVec, UintWindowMask, CurPos);
-	    if(!PositionFound)
-	        
-	        break;
-	    
-	    // We found a mip with required data. Gather the actual color sample from data volume.
-	    float4 ColorSample = SampleWindowedVolumeStep(CurPos, StepSizeWorld, DataVolume, DataVolumeSampler,
-                                                TF, Material.Clamp_WorldGroupSettings, WindowingParams);
+    // Initialize accumulated light energy.
+    float4 LightEnergy = 0;
 
-	    AccumulateLightEnergy(LightEnergy, ColorSample);
-	    // Exit early if light energy (opacity) is already very high (so future steps would have almost no impact on color).
-	    if (LightEnergy.a > 0.95f)
-	    {
-	        LightEnergy.a = 1.0f;
-	        break;
-	    };
-	    // Exit from current loop in case the distance we have covered is bigger than the max distance.
-	} while(length((CurPos - EntryPosition)) < MaxDistance);
+    // Jitter Entry position to avoid artifacts.
+    JitterEntryPos(EntryPos, LocalCamVec, MaterialParameters);
 
+    // Get the bit mask for the current TransferFunction with the current window width/center.
+    uint UintWindowMask = asuint(WindowMask.r);
+    // The distance the raymarch must pass to calculate required data.
+
+    float3 CurPos = EntryPos;
+    while(length((CurPos - EntryPos)) < Thickness)
+    {
+        bool PositionFound = GetNextSignificantPosition(DataVolume, OctreeVolume, LocalCamVec, UintWindowMask, CurPos);
+        if(!PositionFound)
+            break;
+
+        AccumulateWindowedRaymarchStep(LightEnergy, CurPos, DataVolume, DataVolumeSampler, TF, LightVolume, StepSizeWorld, WindowingParams);
+
+        // Exit early if light energy (opacity) is already very high (so future steps would have almost no impact on color).
+        if (LightEnergy.a > 0.95f)
+        {
+            LightEnergy.a = 1.0f;
+            break;
+        };
+    }
     return LightEnergy;
 }
 
-
-
 // Performs octree raymarch for the current pixel.
-float4 PerformWindowedRaymarchOctreeLit(Texture3D DataVolume, // Data Volume 
-                              SamplerState DataVolumeSampler,
-                              Texture2D TF, // Transfer function texture.
-                              float3 CurPos, float Thickness, // CurPos = Entry Position, Thickness is thickness of cube along the ray. Both in UVW space.
-                              float StepCount, // How many steps we should take. Actual number of steps taken is StepCount * Thickness.
-                              float4 WindowingParams,
-                              Texture3D OctreeVolume,
-                              SamplerState OctreeVolumeSampler,
-                              uint OctreeMip,
-                              float4 WindowMask,
-                              uint StartingMip,
-                              float4 LightParams,
-                              FMaterialPixelParameters MaterialParameters) // Material Parameters provided by UE.
+float4 DebugRaymarch(Texture3D DataVolume, // Data Volume 
+                     SamplerState DataVolumeSampler,
+                     Texture2D TF, // Transfer function texture.
+                     float3 EntryPos, float Thickness, // CurPos = Entry Position, Thickness is thickness of cube along the ray. Both in UVW space.
+                     float StepCount, // How many steps we should take. Actual number of steps taken is StepCount * Thickness.
+                     float4 WindowingParams,
+                     Texture3D OctreeVolume,
+                     SamplerState OctreeVolumeSampler,
+                     float4 WindowMask,
+                     float4 LightParams,
+                     FMaterialPixelParameters MaterialParameters) // Material Parameters provided by UE.
 {
-    float3 LightDirection = LightParams.xyz;
-    float LightIntensity = LightParams.w;
-    float LightStepCount = 2000;
-    float StepSizeLight = 1.0 / LightStepCount;
-    float3 LightDirectionInv = -(normalize(mul(LightDirection, LWCHackToFloat(GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal))) * StepSizeLight);
-
-    const float3 EntryPosition = CurPos;
-	// StepSize in UVW is inverse to StepCount.
-	float StepSize = 1 / StepCount;
-	// Actual number of steps to take to march through the full thickness of the cube at the ray position.
-	float FloatActualSteps = StepCount * Thickness;
-
-	// Get camera vector in local space and multiply it by step size.
-	float3 LocalCamVec = -normalize(mul(MaterialParameters.CameraVector, LWCHackToFloat(GetPrimitiveData(MaterialParameters.PrimitiveId).WorldToLocal))) * StepSize;
-
-	// Exit position in UV coordinates where the ray exits the volume.
-	float3 ExitPosition = EntryPosition + FloatActualSteps * LocalCamVec;
-	
-	// Get step size in local units to get consistent opacity at different volume scale and to be consistent with compute shaders' opacity calculations.
-    float StepSizeWorld = VOLUME_DENSITY * StepSize;
-	// Initialize accumulated light energy.
-	float4 LightEnergy = 0;
-	// Jitter Entry position to avoid artifacts.
-	JitterEntryPos(CurPos, LocalCamVec, MaterialParameters);
-
-	
-	// Get the bit mask for the current TransferFunction with the current window width/center.
-	uint UintWindowMask = asuint(WindowMask.r);
-	// The distance the raymarch must pass to calculate required data.
-	float MaxDistance = length(EntryPosition - ExitPosition);
-    float LightAlpha = 1.0;
-    int cnt = 0;
-    int sum = 0;
-    int curSum = 0;
-    do
-	{
-	    bool PositionFound = GetNextSignificantPosition(DataVolume, OctreeVolume, LocalCamVec, UintWindowMask, CurPos);
-	    if(!PositionFound)
-	        break;
-	    
-	    // We found a mip with required data. Gather the actual color sample from data volume.
-
-	    float3 CurPosLight = CurPos;
-        LightAlpha = 1.0;
-        //curSum = 0;
-        
-        while(IsInsideOctree(CurPosLight))
-        {
-            curSum++;
-            bool LightPosFound = GetNextSignificantPosition(DataVolume, OctreeVolume, LightDirectionInv, UintWindowMask, CurPosLight, true);
-            if(!LightPosFound)
-            {
-                //return float4(CurPosLight.x, CurPosLight.y, CurPosLight.z, 1.0);
-                break;
-            }
-
-            float4 ColorSampleLight = SampleWindowedVolumeStep(CurPosLight, StepSizeWorld, DataVolume, DataVolumeSampler,
-                                                TF, Material.Clamp_WorldGroupSettings, WindowingParams);
-            
-            LightAlpha *= (1 - ColorSampleLight.a);
-            // Stop the alpha calculation when the pixel should already be really dark.
-            if(LightAlpha < 0.05)
-            {
-              break;
-            }
-        }
-        cnt++;
-        sum += curSum;
-
-        float4 ColorSample = SampleWindowedVolumeStep(CurPos, StepSizeWorld, DataVolume, DataVolumeSampler,
-                                                TF, Material.Clamp_WorldGroupSettings, WindowingParams);
-        ColorSample.rgb *= LightAlpha;
-	    
-	    ColorSample.rgb *= LightIntensity;
-        
-	    AccumulateLightEnergy(LightEnergy, ColorSample);
-	    // Exit early if light energy (opacity) is already very high (so future steps would have almost no impact on color).
-	    if (LightEnergy.a > 0.95f)
-	    {
-	        LightEnergy.a = 1.0f;
-	        break;
-	    };
-	    // Exit from current loop in case the distance we have covered is bigger than the max distance.
-	} while(length((CurPos - EntryPosition)) < MaxDistance);
-
-    //if(sum/cnt > 20)
-    //{
-     //   return float4(sum/cnt, 0, 0, 1);
-    //}
-    
-    return LightEnergy;
+    return float4(EntryPos, 1.0f);
 }
 
 

@@ -198,10 +198,6 @@ public:
 	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
 	uint32 OctreeVolumeMip = 0;
 
-	/** Define the mip from which the octree raymarch algorithm starts raymarching. **/
-	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
-	uint32 OctreeStartingMip = 0;
-
 	/** Adds one bit to the each side of the window. Use for debugging purposes. **/
 	UPROPERTY(EditAnywhere,meta=(EditCondition="SelectRaymarchMaterial == ERaymarchMaterial::Octree", EditConditionHides))
 	uint32 WindowMaskEdgeBitsCount = 0;

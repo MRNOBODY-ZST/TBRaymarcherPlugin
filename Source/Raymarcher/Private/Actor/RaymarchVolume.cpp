@@ -137,7 +137,6 @@ void ARaymarchVolume::PostRegisterAllComponents()
 		// Set default valuees for the octree raymarch material.
 		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::Steps, RaymarchingSteps);
 		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeMip, OctreeVolumeMip);
-		OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeStartingMip, OctreeStartingMip);
 	}
 
 	if (StaticMeshComponent)
@@ -212,7 +211,7 @@ void ARaymarchVolume::OnImageInfoChangedInEditor()
 	SetMaterialWindowingParameters();
 
 	static double LastTimeReset = 0.0f;
-	if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+	if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 	{
 		// Don't wait for recompute for next frame.
 
@@ -254,7 +253,7 @@ void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	//	RaymarchResources.PostEditChangeProperty(PropertyChangedEvent);
-	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+    const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ARaymarchVolume, VolumeAsset))
 	{
 		SetVolumeAsset(VolumeAsset);
@@ -263,25 +262,16 @@ void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ARaymarchVolume, LightsArray))
 	{
-		if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+	if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 		{
 			bRequestedRecompute = true;
 		}
 		return;
 	}
 
-    //if (PropertyName == GET_MEMBER_NAME_CHECKED(ARaymarchVolume, OctreeLight))
-	// {
- //        if(OctreeRaymarchMaterial)
- //        {
- //            SetOctreeLightParamters();
- //        }
-	// 	return;
-	// }
-
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ARaymarchVolume, ClippingPlane))
 	{
-		if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+    	if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 		{
 			bRequestedRecompute = true;
 		}
@@ -294,7 +284,7 @@ void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName == GET_MEMBER_NAME_CHECKED(FWindowingParameters, HighCutoff) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FWindowingParameters, LowCutoff))
 	{
-		if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+		if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 		{
 			bRequestedRecompute = true;
 		}
@@ -307,7 +297,7 @@ void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		InitializeRaymarchResources(RaymarchResources.DataVolumeTextureRef);
 		SetMaterialVolumeParameters();
-		if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+		if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 		{
 			bRequestedRecompute = true;
 		}
@@ -328,7 +318,7 @@ void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	if (PropertyName == GET_ENUMERATOR_NAME_CHECKED(ARaymarchVolume, SelectRaymarchMaterial))
 	{
 		SwitchRenderer(SelectRaymarchMaterial);
-		if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+		if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 		{
 			bRequestedRecompute = true;
 		}
@@ -343,14 +333,6 @@ void ARaymarchVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		if (RaymarchResources.bIsInitialized)
 		{
 			OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeMip, OctreeVolumeMip);
-		}
-	}
-
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(ARaymarchVolume, OctreeStartingMip))
-	{
-		if (RaymarchResources.bIsInitialized)
-		{
-			OctreeRaymarchMaterial->SetScalarParameterValue(RaymarchParams::OctreeStartingMip, OctreeStartingMip);
 		}
 	}
 
@@ -415,7 +397,7 @@ void ARaymarchVolume::Tick(float DeltaTime)
 
 	// Only check if we need to update lights if we're using Lit raymarch material.
 	// (No point in recalculating a light volume that's not currently being used anyways).
-	if (SelectRaymarchMaterial == ERaymarchMaterial::Lit)
+	if (SelectRaymarchMaterial != ERaymarchMaterial::Intensity)
 	{
 		// For testing light calculation shader speed - comment out when not testing! (otherwise lights get recalculated every tick
 		// for no reason).
@@ -735,6 +717,7 @@ void ARaymarchVolume::SetMaterialVolumeParameters()
 	{
 		OctreeRaymarchMaterial->SetTextureParameterValue(RaymarchParams::DataVolume, RaymarchResources.DataVolumeTextureRef);
 		OctreeRaymarchMaterial->SetTextureParameterValue(RaymarchParams::OctreeVolume, RaymarchResources.OctreeVolumeRenderTarget);
+		OctreeRaymarchMaterial->SetTextureParameterValue(RaymarchParams::LightVolume, RaymarchResources.LightVolumeRenderTarget);
 	}
 }
 

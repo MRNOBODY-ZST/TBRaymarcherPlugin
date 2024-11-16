@@ -137,9 +137,10 @@ FFloat16Color SampleFromTexture(float U, float V, UTexture2D* TF)
 }
 
 FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
-    FWindowingParameters WindowingParams, int EdgeBits, UCurveLinearColor* CurveTF)
+    FWindowingParameters WindowingParams, int EdgeBits, const UCurveLinearColor* CurveTF)
 {
-    constexpr float MINIMUM_NON_TRANSPARENT = 0.002f;
+    // Minimum alpha to consider a color non-transparent
+    constexpr float MINIMUM_ALPHA = 0.001f;
     // Get min and max window values
     float MinWindowVal = (WindowingParams.Center - (WindowingParams.Width / 2.0));
     float MaxWindowVal = (WindowingParams.Center + (WindowingParams.Width / 2.0));
@@ -168,7 +169,7 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
     if (!WindowingParams.LowCutoff)
     {
         FLinearColor MinColor = CurveTF->GetLinearColorValue(0.0f);
-        if (MinColor.A > MINIMUM_NON_TRANSPARENT)
+        if (MinColor.A > MINIMUM_ALPHA)
         {
             // Bottom of TF is not transparent and we're not clipping low values -> need to mark all the low bits as
             // bits-of-interest
@@ -182,11 +183,11 @@ FVector4 URaymarchUtils::GetBitMaskFromWindowedTFCurve(
     if (!WindowingParams.HighCutoff)
     {
         FLinearColor MaxColor = CurveTF->GetLinearColorValue(1.0f);
-        if (MaxColor.A > MINIMUM_NON_TRANSPARENT)
+        if (MaxColor.A > MINIMUM_ALPHA)
         {
             // Top of TF is not transparent and we're not clipping higher values -> need to mark all the above bits as
             // bits-of-interest
-            for (uint32_t BitNum = 0; BitNum < MinWindowBit; BitNum++)
+            for (uint32_t BitNum = MaxWindowBit; BitNum < MaxNumberOfBits; BitNum++)
             {
                 Result |= (1 << BitNum);
             }
@@ -241,10 +242,10 @@ void URaymarchUtils::ClearResourceLightVolumes(const FBasicRaymarchRenderingReso
 
 RAYMARCHER_API void URaymarchUtils::MakeDefaultTFTexture(UTexture2D*& OutTexture)
 {
-    const unsigned SampleCount = 256;
+    constexpr unsigned SampleCount = 256;
 
     // Give the texture some height, so it can be inspected in the asset editor.
-    const unsigned TextureHeight = 1;
+    constexpr unsigned TextureHeight = 1;
 
     FFloat16* Samples = new FFloat16[SampleCount * 4 * TextureHeight];
     for (unsigned i = 0; i < SampleCount; i++)
@@ -266,22 +267,21 @@ RAYMARCHER_API void URaymarchUtils::MakeDefaultTFTexture(UTexture2D*& OutTexture
 
     // Don't forget to free the memory here
     delete[] Samples;
-    return;
 }
 
 void URaymarchUtils::ColorCurveToTexture(UCurveLinearColor* Curve, UTexture2D*& OutTexture)
 {
-    const unsigned sampleCount = 256;
+    constexpr unsigned SampleCount = 256;
 
     // Give the texture some height, so it can be inspected in the asset editor. Possibly breaks cache consistency
-    const unsigned TextureHeight = 16;
+    constexpr unsigned TextureHeight = 16;
 
     // Using float16 format because RGBA8 wouldn't be persistent for some reason.
-    FFloat16* samples = new FFloat16[sampleCount * 4 * TextureHeight];
+    FFloat16* samples = new FFloat16[SampleCount * 4 * TextureHeight];
 
-    for (unsigned i = 0; i < sampleCount; i++)
+    for (unsigned i = 0; i < SampleCount; i++)
     {
-        float index = ((float) i) / ((float) sampleCount - 1);
+        float index = ((float) i) / ((float) SampleCount - 1);
         FLinearColor picked = Curve->GetLinearColorValue(index);
 
         samples[i * 4] = picked.R;
@@ -292,11 +292,11 @@ void URaymarchUtils::ColorCurveToTexture(UCurveLinearColor* Curve, UTexture2D*& 
 
     for (unsigned i = 1; i < TextureHeight; i++)
     {
-        FMemory::Memcpy(samples + (i * sampleCount * 4), samples, sampleCount * 4 * 2);
+        FMemory::Memcpy(samples + (i * SampleCount * 4), samples, SampleCount * 4 * 2);
     }
 
     UVolumeTextureToolkit::Create2DTextureTransient(
-        OutTexture, PF_FloatRGBA, FIntPoint(sampleCount, TextureHeight), (uint8*) samples);
+        OutTexture, PF_FloatRGBA, FIntPoint(SampleCount, TextureHeight), (uint8*) samples);
 
     delete[] samples;    // Don't forget to free the memory here
     return;

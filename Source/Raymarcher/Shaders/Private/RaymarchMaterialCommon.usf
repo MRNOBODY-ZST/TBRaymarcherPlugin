@@ -38,9 +38,6 @@ float4 PerformRaymarchCubeSetup(float3 ClippingCenter,
 
     // Get actual depth in local space, account for mesh bounds (by default, we use a centered 1x1x1 cube mesh, so this is unnecessary)
     LocalSceneDepth = length(WorldDepthVec);
-    
-    // We use unit cubes now, uncomment this if you want to use non-unit meshes for some reason.
-    // LocalSceneDepth /= (GetPrimitiveData(MaterialParameters.PrimitiveId).LocalObjectBoundsMax.x * 2);
 
     // Account for difference between camera center vector and camera-to-pixel depth
     LocalSceneDepth /= abs(dot(CameraFWDVecWorld, MaterialParameters.CameraVector));
@@ -74,19 +71,22 @@ float4 PerformRaymarchCubeSetup(float3 ClippingCenter,
     // Calculate box thickness at this pixel (in local space).
     float BoxThickness = max(0, EntryExitTimes.y - EntryExitTimes.x);
 
-	if(IsCurPosClipped(EntryPosition, ClippingCenter, ClippingDirection) && IsCurPosClipped(ExitPosition, ClippingCenter, ClippingDirection))
+    bool bEntryPosClipped = IsPosClipped(EntryPosition, ClippingCenter, ClippingDirection);
+    bool bExitPosClipped = IsPosClipped(ExitPosition, ClippingCenter, ClippingDirection);
+    
+	if(bEntryPosClipped && bExitPosClipped)
 	{
 		// Both entry point and exit point is clipped. Nothing to show. Set the thickness to zero.
 		BoxThickness = 0;
 	}
-	else if(IsCurPosClipped(EntryPosition, ClippingCenter, ClippingDirection))
+	else if(bEntryPosClipped)
 	{
 		// Entry position is clipped, start from the plane intersection position.
 		float3 PlaneIntersectionPoint = EntryPosition + (LocalCamVec * PlaneHitTime);
 		EntryPosition = PlaneIntersectionPoint;
 		BoxThickness = max(0, BoxThickness - PlaneHitTime);
 	}
-	else if(IsCurPosClipped(ExitPosition, ClippingCenter, ClippingDirection))
+	else if(bExitPosClipped)
 	{
 		// Exit position is clipped. Adjust the thickness.
 		BoxThickness = max(0, PlaneHitTime);

@@ -46,7 +46,7 @@ public:
 	
 	// Returns a bit mask where all the bits between the window center and window width are set to 1 if the TF curve is non-zero
     // at that position.
-	static FVector4 GetBitMaskFromWindowedTFCurve(FWindowingParameters WindowingParams, int EdgeBits, UCurveLinearColor* CurveTF);
+	static FVector4 GetBitMaskFromWindowedTFCurve(FWindowingParameters WindowingParams, int EdgeBits, const UCurveLinearColor* CurveTF);
 	
 	/** Clears a light volume in provided raymarch resources. */
 	UFUNCTION(BlueprintCallable, Category = "Raymarcher")

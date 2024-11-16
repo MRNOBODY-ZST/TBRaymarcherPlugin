@@ -19,7 +19,7 @@
 
 // Returns true if CurPos is clipped by the clipping plane defined by the center and direction.
 // (Volume is clipped away in the clipping direction)
-bool IsCurPosClipped(float3 CurPos, float3 ClippingCenter, float3 ClippingDirection)
+bool IsPosClipped(float3 CurPos, float3 ClippingCenter, float3 ClippingDirection)
 {
     return (dot(CurPos - ClippingCenter, ClippingDirection) <= 0.0);
 }
